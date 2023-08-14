@@ -1,0 +1,64 @@
+diff --git a/api/middleware.ts b/api/middleware.ts
+index 3829de2352cf9c65146a6560461e89cd62083b85..bb1ad7d5fef2fbf71150453537276d1f77f4bcc9 100644
+--- a/api/middleware.ts
++++ b/api/middleware.ts
+@@ -6,6 +6,7 @@ export const apiRoutes: Middleware = ({ forward }) => {
+   return async (event: FetchEvent) => {
+     let apiHandler = getApiHandler(new URL(event.request.url), event.request.method);
+     if (apiHandler) {
++      let responseHeaders = new Headers();
+       let apiEvent = Object.freeze({
+         request: event.request,
+         clientAddress: event.clientAddress,
+@@ -13,10 +14,15 @@ export const apiRoutes: Middleware = ({ forward }) => {
+         params: apiHandler.params,
+         env: event.env,
+         $type: FETCH_EVENT,
+-        fetch: event.fetch
++        fetch: event.fetch,
++        responseHeaders
+       });
+       try {
+-        return await apiHandler.handler(apiEvent);
++        const resp = await apiHandler.handler(apiEvent);
++        responseHeaders.forEach((value, name) => {
++          resp.headers.append(name, value);
++        });
++        return resp;
+       } catch (error: any) {
+         if (error instanceof Response) {
+           return error;
+diff --git a/data/createRouteData.tsx b/data/createRouteData.tsx
+index 076c2b061144f0b270da970283c9bb28ce63a12d..9c4fe03167cbea8a583437af2d75c40b1d1ad7a3 100644
+--- a/data/createRouteData.tsx
++++ b/data/createRouteData.tsx
+@@ -70,6 +70,7 @@ export function createRouteData<T, S = true>(
+   const resourceFetcher: ResourceFetcher<S, T> = async (key: S) => {
+     try {
+       let event = pageEvent as RouteDataEvent;
++      console.log('Inside createRouteData, on the server: ' + isServer)
+       if (isServer && pageEvent) {
+         event = Object.freeze({
+           request: pageEvent.request,
+@@ -77,7 +78,8 @@ export function createRouteData<T, S = true>(
+           clientAddress: pageEvent.clientAddress,
+           locals: pageEvent.locals,
+           $type: FETCH_EVENT,
+-          fetch: pageEvent.fetch
++          fetch: pageEvent.fetch,
++          responseHeaders: pageEvent.responseHeaders
+         });
+       }
+ 
+diff --git a/server/types.tsx b/server/types.tsx
+index a2b4b66ddb573a6a594456a8a24611b670a1213a..8106da347d8b0ccb7c33adbc7cd6cbb39623b8bb 100644
+--- a/server/types.tsx
++++ b/server/types.tsx
+@@ -82,6 +82,7 @@ export interface FetchEvent {
+ 
+ export interface ServerFunctionEvent extends FetchEvent {
+   $type: typeof FETCH_EVENT;
++  responseHeaders: Headers;
+ }
+ 
+ export interface PageEvent extends FetchEvent {
