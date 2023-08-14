@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   solid-start@0.3.2:
-    hash: ubxcfgz3djnhbrrmrnsudklpxe
+    hash: z6yztr4lqdo2ziqd57cabcox5m
     path: patches/solid-start@0.3.2.patch
 
 dependencies:
@@ -21,7 +21,7 @@ dependencies:
     version: 1.7.11
   solid-start:
     specifier: 0.3.2
-    version: 0.3.2(patch_hash=ubxcfgz3djnhbrrmrnsudklpxe)(@solidjs/meta@0.28.6)(@solidjs/router@0.8.3)(solid-js@1.7.11)(solid-start-node@0.3.2)(vite@4.4.9)
+    version: 0.3.2(patch_hash=z6yztr4lqdo2ziqd57cabcox5m)(@solidjs/meta@0.28.6)(@solidjs/router@0.8.3)(solid-js@1.7.11)(solid-start-node@0.3.2)(vite@4.4.9)
 
 devDependencies:
   '@types/node':
@@ -3006,13 +3006,13 @@ packages:
       polka: 1.0.0-next.22
       rollup: 3.28.0
       sirv: 2.0.3
-      solid-start: 0.3.2(patch_hash=ubxcfgz3djnhbrrmrnsudklpxe)(@solidjs/meta@0.28.6)(@solidjs/router@0.8.3)(solid-js@1.7.11)(solid-start-node@0.3.2)(vite@4.4.9)
+      solid-start: 0.3.2(patch_hash=z6yztr4lqdo2ziqd57cabcox5m)(@solidjs/meta@0.28.6)(@solidjs/router@0.8.3)(solid-js@1.7.11)(solid-start-node@0.3.2)(vite@4.4.9)
       terser: 5.19.2
       vite: 4.4.9(@types/node@20.5.0)
     transitivePeerDependencies:
       - supports-color
 
-  /solid-start@0.3.2(patch_hash=ubxcfgz3djnhbrrmrnsudklpxe)(@solidjs/meta@0.28.6)(@solidjs/router@0.8.3)(solid-js@1.7.11)(solid-start-node@0.3.2)(vite@4.4.9):
+  /solid-start@0.3.2(patch_hash=z6yztr4lqdo2ziqd57cabcox5m)(@solidjs/meta@0.28.6)(@solidjs/router@0.8.3)(solid-js@1.7.11)(solid-start-node@0.3.2)(vite@4.4.9):
     resolution: {integrity: sha512-5sYkrnVbZLtFY/RlVWic0FNLlrdpSFfv5x3pz1kiBr2MoDcKLGiH5muydkkmCJwBa8I05mK/oDytoLZ/qIA36Q==}
     hasBin: true
     peerDependencies:

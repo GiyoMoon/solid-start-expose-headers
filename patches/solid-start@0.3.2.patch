@@ -29,18 +29,10 @@ index 3829de2352cf9c65146a6560461e89cd62083b85..bb1ad7d5fef2fbf71150453537276d1f
          if (error instanceof Response) {
            return error;
 diff --git a/data/createRouteData.tsx b/data/createRouteData.tsx
-index 076c2b061144f0b270da970283c9bb28ce63a12d..9c4fe03167cbea8a583437af2d75c40b1d1ad7a3 100644
+index 076c2b061144f0b270da970283c9bb28ce63a12d..85da785affe85f7522369fd8b547697825b5c8ea 100644
 --- a/data/createRouteData.tsx
 +++ b/data/createRouteData.tsx
-@@ -70,6 +70,7 @@ export function createRouteData<T, S = true>(
-   const resourceFetcher: ResourceFetcher<S, T> = async (key: S) => {
-     try {
-       let event = pageEvent as RouteDataEvent;
-+      console.log('Inside createRouteData, on the server: ' + isServer)
-       if (isServer && pageEvent) {
-         event = Object.freeze({
-           request: pageEvent.request,
-@@ -77,7 +78,8 @@ export function createRouteData<T, S = true>(
+@@ -77,7 +77,8 @@ export function createRouteData<T, S = true>(
            clientAddress: pageEvent.clientAddress,
            locals: pageEvent.locals,
            $type: FETCH_EVENT,
@@ -49,16 +41,163 @@ index 076c2b061144f0b270da970283c9bb28ce63a12d..9c4fe03167cbea8a583437af2d75c40b
 +          responseHeaders: pageEvent.responseHeaders
          });
        }
- 
+
+diff --git a/server/middleware.ts b/server/middleware.ts
+index b605421621b9636507ac3472add36dbd6702f082..1a183cb18b412270a161bfd08625849d3a85c6ab 100644
+--- a/server/middleware.ts
++++ b/server/middleware.ts
+@@ -38,7 +38,8 @@ export const inlineServerFunctions: ServerMiddleware = ({ forward }) => {
+         locals: event.locals,
+         fetch: event.fetch,
+         $type: FETCH_EVENT,
+-        env: event.env
++        env: event.env,
++        responseHeaders: new Headers()
+       });
+
+       const serverResponse = await handleServerRequest(serverFunctionEvent);
+diff --git a/server/server-functions/server.ts b/server/server-functions/server.ts
+index ccf967b115134db37953d47717354eb66d8ac840..55f7bfa508167ef93ebc2187c3904c619305cb41 100644
+--- a/server/server-functions/server.ts
++++ b/server/server-functions/server.ts
+@@ -61,11 +61,15 @@ async function parseRequest(event: ServerFunctionEvent) {
+ export function respondWith(
+   request: Request,
+   data: Response | Error | FormError | string | object,
+-  responseType: "throw" | "return"
++  responseType: "throw" | "return",
++  responseHeaders: Headers
+ ) {
++  const headers = new Headers(responseHeaders)
+   if (data instanceof Response) {
+     if (isRedirectResponse(data) && request.headers.get(XSolidStartOrigin) === "client") {
+-      let headers = new Headers(data.headers);
++      data.headers.forEach((value, name) => {
++        headers.append(name, value)
++      })
+       headers.set(XSolidStartOrigin, "server");
+       headers.set(XSolidStartLocationHeader, data.headers.get(LocationHeader) ?? "/");
+       headers.set(XSolidStartResponseTypeHeader, responseType);
+@@ -79,7 +83,9 @@ export function respondWith(
+       // this is a websocket upgrade, so we don't want to modify the response
+       return data;
+     } else {
+-      let headers = new Headers(data.headers);
++      data.headers.forEach((value, name) => {
++        headers.append(name, value)
++      })
+       headers.set(XSolidStartOrigin, "server");
+       headers.set(XSolidStartResponseTypeHeader, responseType);
+       headers.set(XSolidStartContentTypeHeader, "response");
+@@ -91,6 +97,8 @@ export function respondWith(
+       });
+     }
+   } else if (data instanceof FormError) {
++    headers.set(XSolidStartResponseTypeHeader, responseType);
++    headers.set(XSolidStartContentTypeHeader, "form-error");
+     return new Response(
+       JSON.stringify({
+         error: {
+@@ -105,13 +113,12 @@ export function respondWith(
+       }),
+       {
+         status: 400,
+-        headers: {
+-          [XSolidStartResponseTypeHeader]: responseType,
+-          [XSolidStartContentTypeHeader]: "form-error"
+-        }
++        headers
+       }
+     );
+   } else if (data instanceof ServerError) {
++    headers.set(XSolidStartResponseTypeHeader, responseType);
++    headers.set(XSolidStartContentTypeHeader, "server-error");
+     return new Response(
+       JSON.stringify({
+         error: {
+@@ -123,14 +130,13 @@ export function respondWith(
+       }),
+       {
+         status: data.status,
+-        headers: {
+-          [XSolidStartResponseTypeHeader]: responseType,
+-          [XSolidStartContentTypeHeader]: "server-error"
+-        }
++        headers
+       }
+     );
+   } else if (data instanceof Error) {
+     console.error(data);
++    headers.set(XSolidStartResponseTypeHeader, responseType);
++    headers.set(XSolidStartContentTypeHeader, "error");
+     return new Response(
+       JSON.stringify({
+         error: {
+@@ -145,10 +151,7 @@ export function respondWith(
+       }),
+       {
+         status: (data as any).status || 500,
+-        headers: {
+-          [XSolidStartResponseTypeHeader]: responseType,
+-          [XSolidStartContentTypeHeader]: "error"
+-        }
++        headers
+       }
+     );
+   } else if (
+@@ -157,23 +160,21 @@ export function respondWith(
+     typeof data === "number" ||
+     typeof data === "boolean"
+   ) {
++    headers.set(ContentTypeHeader, "application/json");
++    headers.set(XSolidStartResponseTypeHeader, responseType);
++    headers.set(XSolidStartContentTypeHeader, "json");
+     return new Response(JSON.stringify(data), {
+       status: 200,
+-      headers: {
+-        [ContentTypeHeader]: "application/json",
+-        [XSolidStartResponseTypeHeader]: responseType,
+-        [XSolidStartContentTypeHeader]: "json"
+-      }
++      headers
+     });
+   }
+
++  headers.set(ContentTypeHeader, "application/json");
++  headers.set(XSolidStartResponseTypeHeader, responseType);
++  headers.set(XSolidStartContentTypeHeader, "json");
+   return new Response("null", {
+     status: 200,
+-    headers: {
+-      [ContentTypeHeader]: "application/json",
+-      [XSolidStartContentTypeHeader]: "json",
+-      [XSolidStartResponseTypeHeader]: responseType
+-    }
++    headers
+   });
+ }
+
+@@ -191,9 +192,9 @@ export async function handleServerRequest(event: ServerFunctionEvent) {
+         };
+       }
+       const data = await handler.call(event, ...(Array.isArray(args) ? args : [args]));
+-      return respondWith(event.request, data, "return");
++      return respondWith(event.request, data, "return", event.responseHeaders);
+     } catch (error) {
+-      return respondWith(event.request, error as Error, "throw");
++      return respondWith(event.request, error as Error, "throw", event.responseHeaders);
+     }
+   }
+
 diff --git a/server/types.tsx b/server/types.tsx
 index a2b4b66ddb573a6a594456a8a24611b670a1213a..8106da347d8b0ccb7c33adbc7cd6cbb39623b8bb 100644
 --- a/server/types.tsx
 +++ b/server/types.tsx
 @@ -82,6 +82,7 @@ export interface FetchEvent {
- 
+
  export interface ServerFunctionEvent extends FetchEvent {
    $type: typeof FETCH_EVENT;
 +  responseHeaders: Headers;
  }
- 
+
  export interface PageEvent extends FetchEvent {
